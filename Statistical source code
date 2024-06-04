@@ -1,2 +1,99 @@
-Proc XX
-XX
+/* data summarization */
+proc means n mean median min max data=work1;
+class hdm_day protokol;
+var crp citrullin ccl20 krea ANC;
+run;
+
+proc means n mean median min max data='HDM _ clearance'n;
+class hdm_day protokol;
+var pMTX_23 pMTX_AUC1 Krea_MAX_t48 ;
+run;
+
+/* mixed model repeated measures analyses */
+PROC MIXED DATA=work1  PLOTS=ALL;
+class memo_ID protokol (ref='A2G') HDM_day (ref='0') ;
+model log_cit = hdm_day hdm_day*protokol  / ddfm=kr S cl VCIRY outpm=fitmain residual; 
+REPEATED memo_ID / SUBJECT=memo_ID TYPE=cs R RCORR;
+RUN;
+
+PROC MIXED DATA=work1  PLOTS=ALL;
+class memo_ID protokol (ref='A2G') HDM_day (ref='0') ;
+model log_ccl20 = hdm_day hdm_day*protokol / ddfm=kr S cl VCIRY outpm=fitmain residual; 
+REPEATED memo_ID / SUBJECT=memo_ID TYPE=cs R RCORR;
+RUN;
+
+PROC MIXED DATA=work1  PLOTS=ALL;
+class memo_ID protokol (ref='A2G') HDM_day (ref='0') ;
+model log_crp = hdm_day hdm_day*protokol / ddfm=kr S cl VCIRY outpm=fitmain residual; 
+REPEATED memo_ID / SUBJECT=memo_ID TYPE=cs R RCORR;
+RUN;
+
+PROC MIXED DATA=work1  PLOTS=ALL;
+class memo_ID protokol (ref='A2G') HDM_day (ref='0') ;
+model log_ANC = hdm_day hdm_day*protokol / ddfm=kr S cl VCIRY outpm=fitmain residual; 
+REPEATED memo_ID / SUBJECT=memo_ID TYPE=cs R RCORR;
+RUN;
+
+PROC MIXED DATA=work1  PLOTS=ALL;
+class memo_ID protokol (ref='A2G') HDM_day (ref='0') ;
+model krea = hdm_day hdm_day*protokol / ddfm=kr S cl VCIRY outpm=fitmain residual; 
+REPEATED memo_ID / SUBJECT=memo_ID TYPE=cs R RCORR;
+RUN;
+
+/* Bloodstream infections (fisher’s + logistic regression model)  */
+data work2;
+set 'HDM _ clearance'n;
+if cit_7<=10 then cit_hyp=1;
+if cit_7>10 then cit_hyp=0;
+if ANC_7>=0.5 then neu=0;
+if ANC_7<0.5 then neu=1;
+run;
+
+proc freq data=work2; 
+tables cit_hyp*pos_BC/chisq fisher nopercent nocol expected relrisk ;
+run;
+
+proc freq data=work2; 
+tables neu*pos_BC/chisq fisher nopercent nocol expected relrisk ;
+run;
+
+proc genmod descending data=work2;
+class protokol;
+model bc=cit_hyp protokol neu /dist=binomial link=logit;
+estimate "cit" cit_hyp 1/exp;
+output out=pred lower=lower pred=phat upper=upper reschi=reschi stdreschi=stdreschi cooksd=cooksd dfbeta=_all_;
+run;
+
+/* Baseline characteristics  */
+proc npar1way wilcoxon data='HDM _ clearance'n;
+class protokol;
+var age pMTX_23 pMTX_AUC1 Krea_MAX_t48  ;
+run;
+
+proc freq data='HDM _ clearance'n; 
+tables protokol*sex/chisq fisher nopercent nocol expected relrisk ;
+run;
+
+proc freq data='HDM _ clearance'n; 
+tables protokol*pheno/chisq fisher nopercent nocol expected relrisk ;
+run;
+
+proc freq data='HDM _ clearance'n; 
+tables protokol*risk/chisq fisher nopercent nocol expected relrisk ;
+run;
+
+/* spearman correlations  */
+proc corr data='HDM _ clearance'n spearman plots=matrix(histogram);
+where Protokol='NOPHO';
+var pMTX_23 pMTX_AUC1 Krea_MAX_t48 cit_0 crp_0 CCL20_0 neu_0 cit_7 crp_7 CCL20_7 neu_7 ;
+run;
+
+proc corr data='HDM _ clearance'n spearman plots=matrix(histogram);
+where Protokol='A2G';
+var pMTX_23 pMTX_AUC1 Krea_MAX_t48 cit_0 crp_0 CCL20_0 neu_0 cit_7 crp_7 CCL20_7 neu_7 ;
+run;
+
+proc corr data='HDM _ clearance'n spearman plots=matrix(histogram);
+var pMTX_23 pMTX_AUC1 Krea_MAX_t48 cit_0 crp_0 CCL20_0 neu_0 cit_7 crp_7 CCL20_7 neu_7;
+run;
+
